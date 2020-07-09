@@ -49,6 +49,16 @@ sched$Season <- case_when(
   sched$Date > "2019-07-01" & sched$Date < "2020-08-01" ~ "2019-2020"
 ) 
 
+#Removing games that are missing scores/haven't been played
+sched <- na.omit(sched)
+
+#Changing some variables to factors
+sched$Team <- as.factor(sched$Team)
+sched$Opp <- as.factor(sched$Opp)
+sched$Result <- as.factor(sched$Result)
+sched$Season <- as.factor(sched$Season)
+sched$Comp <- as.factor(sched$Comp)
+sched$Venue <- as.factor(sched$Venue)
 
 #### CLEANING TEAMS ####
 teams <- read_csv("big5teams.csv")
@@ -63,4 +73,5 @@ for(i in 1:nrow(teams)){
   # Shortening the string to begin at the uppercase letter
   teams$Country[i] <- str_sub(teams$Country[i], start = cap_loc)
 }
+
 
