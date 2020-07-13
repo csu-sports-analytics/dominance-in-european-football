@@ -1,23 +1,76 @@
 install.packages("neuralnet")
-library(nnet)
+library(neuralnet)
 library(caret)
 install.packages("dummies")
 library(dummies)
 install.packages("FeatureHashing")
 library(FeatureHashing)
 
-sched_dummy <- select(sched, Result, Team, Opp, Comp, Venue, Season)
+sched_dummy <- select(sched, Team, Opp, Comp, Home, Season)
 dmy <- dummyVars(" ~ .", data = sched_dummy)
 sched_dummy <- data.frame(predict(dmy, newdata = sched_dummy))
 
 # split the data into training and testing data sets
 set.seed(100)
-split <- sample(nrow(sched_dummy), floor(0.5*nrow(sched_dummy)))
+sched_dummy <- cbind(sched$Result, sched_dummy)
+colnames(sched_dummy)[1] <- "Result"
+split <- sample(nrow(sched_dummy), floor(0.7*nrow(sched_dummy)))
 train <-sched_dummy[split,]
 test <- sched_dummy[-split,]
 
-outcomeNamess <- c("ResultW", "ResultD", "ResultL")
+
+nn <- neuralnet((Result == "W") + (Result == "D") + (Result == "L") ~ .,
+                data = train, hidden = 10, act.fct = "logistic",
+                linear.output = FALSE, lifesign = "minimal", threshold = 0.01,
+                err.fct = "ce", stepmax = 1e+10, rep = 1)
+nn.results <- compute(nn, test)
+results <- data.frame(actual = test$Result, prediction = nn.results$)
+
+
+
+ResultW <- as.factor(ifelse(sched$Result == "W", 1, 0))
+sched_dummy <- cbind(ResultW, sched)
+sched_dummy <- model.matrix(ResultW ~ Team + Opp + Season + Home + Comp, data = sched)
+# split the data into training and testing data sets
+set.seed(100)
+split <- sample(nrow(sched_dummy), floor(0.5*nrow(sched_dummy)))
+train <-sched_dummy[split,]
+test <- sched_dummy[-split,]
+ResultW_train <- ResultW[split]
+ResultW_test <- ResultW[-split]
+
+install.packages("glmnet")
+library(glmnet)
+cv.fit <- cv.glmnet(x = train, y = ResultW_train,
+              family = "binomial", )
+
+library(broom)
+lambdamin <- cv.fit$lambda.min
+fit <-  glmnet(x = train, y = ResultW_train, family = "binomial", alpha = 0, lambda = lambdamin)
+testing <- predict.glmnet(fit, newx = test)
+results <- data.frame(actual = ResultW_test, prediction = testing)
+table(results$actual,results$prediction)
+
+
+
+
+library(randomForest)
+RF_model <- randomForest(x = train[,4:ncol(train)], y = train$ResultW, ntree = 100)
+predictRF <- predict(RF_model, newdata=test)
+summary(RF_model)
+
+
+outcomeNames <- c("ResultW", "ResultD", "ResultL")
 predictorNames <- setdiff(colnames(sched_dummy), outcomeNames)
+
+
+library(e1071)
+nb_model <- naiveBayes(ResultW + ResultD + ResultL ~ ., data = train)
+predict(nb_model, newdata = as.data.frame(test))
+
+
+nb_model_W <- naiveBayes(ResultW ~ ., data = train)
+
 
 library(glmnet)
 # straight matrix model not recommended - works but very slow, go with a sparse matrix

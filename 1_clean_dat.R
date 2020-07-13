@@ -52,13 +52,15 @@ sched$Season <- case_when(
 #Removing games that are missing scores/haven't been played
 sched <- na.omit(sched)
 
-#Changing some variables to factors
+#Changing some variables to factors or binary
 sched$Team <- as.factor(sched$Team)
 sched$Opp <- as.factor(sched$Opp)
 sched$Result <- as.factor(sched$Result)
 sched$Season <- as.factor(sched$Season)
 sched$Comp <- as.factor(sched$Comp)
-sched$Venue <- as.factor(sched$Venue)
+sched$Venue <- ifelse(sched$Venue == "Home", 1, 0)
+colnames(sched)[5] <- "Home"
+
 
 #### CLEANING TEAMS ####
 teams <- read_csv("big5teams.csv")
