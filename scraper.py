@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import numpy as np
 from h5py.h5o import link
 from unittest.mock import inplace
 
@@ -61,45 +62,46 @@ def getSched():
     allTeams = getTeams()
     team_links = getLinks()
     full_sched = pd.DataFrame()
-for ind in range(0,1): #range(0, len(team_links)):
-    #Setting team
-    current_team = allTeams.iloc[ind,0]
-    #Gathering link for schedule
-    link = team_links.get(ind)
-    #Building webpage to be scraped
-    url = "https://fbref.com" + link
-    page = requests.get(url)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    #Creating list of stats to be gathered from the schedule
-    stats = ['comp', 'round', 'dayofweek', 'venue', 
-             'result', 'goals_for', 'goals_against', 'opponent']
-    #Gathering those stats from the schedule
-    stats_list = [[td.getText() for td in soup.findAll('td', {'data-stat': stat})] for stat in stats]
-    #Forming the data frame of the schedule
-    team_df = pd.DataFrame(stats_list).T
-    #Determining which row ends the "All Competition" tab of the webpage
-    for i, row in team_df.iterrows():
-        if (i > 20 and team_df.iloc[i, 1] == "Matchweek 1"):
-            end_row = i
-    #Removing rows that are after the "All Competitions" schedule
-    team_df.drop(range(end_row, len(team_df.index)), inplace = True)
-    #Getting dates of the games and cleaning them
-    dates = pd.DataFrame([th.getText() for th in soup.findAll('th', {'data-stat': 'date'})])
-    dates.drop(range(end_row+1, len(dates.index)), inplace = True, axis = 0)
-    dates.drop(0, inplace = True, axis = 0)
-    #Adding dates to the data frame
-    team_df = team_df.assign(date = dates.values)
-    #Adding the name of the team to the data frame
-    team_df = team_df.assign(team = current_team)
-    #Adding the team's data frame to the overall large schedule data frame
-    full_sched = full_sched.append(team_df, ignore_index= True)
+    for ind in range(0, len(team_links)):
+        #Setting team
+        current_team = allTeams.iloc[ind,0]
+        #Gathering link for schedule
+        link = team_links.get(ind)
+        #Building webpage to be scraped
+        url = "https://fbref.com" + link
+        page = requests.get(url)
+        soup = BeautifulSoup(page.content, 'html.parser')
+        #Creating list of stats to be gathered from the schedule
+        stats = ['comp', 'round', 'dayofweek', 'venue', 
+                 'result', 'goals_for', 'goals_against', 'opponent']
+        #Gathering those stats from the schedule
+        stats_list = [[td.getText() for td in soup.findAll('td', {'data-stat': stat})] for stat in stats]
+        #Forming the data frame of the schedule
+        team_df = pd.DataFrame(stats_list).T
+        #Determining which row ends the "All Competition" tab of the webpage
+        end_row = 0
+        for i in range(30,len(team_df)):
+            if (team_df.iloc[i,1] == None):
+                end_row = i
+                break
+        #Removing rows that are after the "All Competitions" schedule
+        team_df.drop(range(end_row, len(team_df.index)), inplace = True)
+        #Getting dates of the games and cleaning them
+        dates = pd.DataFrame([th.getText() for th in soup.findAll('th', {'data-stat': 'date'})])
+        #Removing first row because it is "Date" instead of a date object
+        dates = dates.iloc[1:]
+        #Adding dates to the data frame
+        team_df = team_df.assign(date = dates)
+        #Adding the name of the team to the data frame
+        team_df = team_df.assign(team = current_team)
+        #Adding the team's data frame to the overall large schedule data frame
+        full_sched = full_sched.append(team_df, ignore_index= True)
         
     return full_sched
 
 def csvSchedDump():
     df = getSched()
-    df = df.set_axis(['Comp', 'Round', 'Day', 'Venue', 'Result', 'GF', 'GA', 'Opp', 'Date', 'Team'],
-                     axis = 1, inplace = False)
+    df = df.columns(['Comp', 'Round', 'Day', 'Venue', 'Result', 'GF', 'GA', 'Opp', 'Date', 'Team'])
     df.to_csv("/Users/quinnjohnson/Desktop/SportStatSummer20/dominance-in-european-football/big5sched.csv")
     
 csvSchedDump()
