@@ -87,9 +87,9 @@ def getSched():
         #Removing rows that are after the "All Competitions" schedule
         team_df.drop(range(end_row, len(team_df.index)), inplace = True)
         #Getting dates of the games and cleaning them
-        dates = pd.DataFrame([th.getText() for th in soup.findAll('th', {'data-stat': 'date'})])
-        #Removing first row because it is "Date" instead of a date object
-        dates = dates.iloc[1:]
+        dates_not_framed = [th.getText() for th in soup.findAll('th', {'data-stat': 'date'})]
+        dates_not_framed = dates_not_framed[1:]
+        dates = pd.DataFrame(dates_not_framed)
         #Adding dates to the data frame
         team_df = team_df.assign(date = dates)
         #Adding the name of the team to the data frame
@@ -101,7 +101,7 @@ def getSched():
 
 def csvSchedDump():
     df = getSched()
-    df = df.columns(['Comp', 'Round', 'Day', 'Venue', 'Result', 'GF', 'GA', 'Opp', 'Date', 'Team'])
+    df.columns = ['Comp', 'Round', 'Day', 'Venue', 'Result', 'GF', 'GA', 'Opp', 'Date', 'Team']
     df.to_csv("/Users/quinnjohnson/Desktop/SportStatSummer20/dominance-in-european-football/big5sched.csv")
     
 csvSchedDump()
